@@ -1254,6 +1254,7 @@
 
     // ====== КРОППЕР ======
     let _cropState = { scale:1, ox:0, oy:0, dragging:false, lastX:0, lastY:0, naturalW:0, naturalH:0, src:'' };
+    let _cropMode = 'avatar'; // 'avatar' | 'mark'
     const CROP_SIZE = 280; // px размер области кроппера
 
     function handleAvatarUpload(file) {
@@ -1359,14 +1360,19 @@
         const srcH = CROP_SIZE / s.scale;
         ctx.drawImage(freshImg, srcX, srcY, srcW, srcH, 0, 0, 128, 128);
         const dataUrl = canvas.toDataURL('image/png');
-        userProfile.avatar = dataUrl;
-        localStorage.setItem('userProfile', JSON.stringify(userProfile));
-        sendWS({ type: 'update_profile', nickname: userProfile.nickname, avatar: userProfile.avatar });
-        updateAvatarDisplay(dataUrl);
-        const wrap = document.getElementById('avatarPickerWrap');
-        if (wrap) wrap.classList.remove('open');
-        closeCropModal();
-        showToast('✅ Аватар обновлён');
+        if (_cropMode === 'mark') {
+          applyMarkCrop(dataUrl);
+          closeCropModal();
+        } else {
+          userProfile.avatar = dataUrl;
+          localStorage.setItem('userProfile', JSON.stringify(userProfile));
+          sendWS({ type: 'update_profile', nickname: userProfile.nickname, avatar: userProfile.avatar });
+          updateAvatarDisplay(dataUrl);
+          const wrap = document.getElementById('avatarPickerWrap');
+          if (wrap) wrap.classList.remove('open');
+          closeCropModal();
+          showToast('✅ Аватар обновлён');
+        }
       };
       freshImg.src = s.src;
     }
@@ -1769,58 +1775,47 @@
       picker.appendChild(uploadBtn);
     }
 
+    let _markCropFileName = '';
+
     function handleCustomImageUpload(file) {
       if (!file) return;
-      // Принимаем только PNG, JPG, WebP, GIF
       const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-      if (!allowed.includes(file.type)) {
-        showToast('❌ Только PNG, JPG, WebP, GIF');
-        return;
-      }
-      // Макс 2MB
-      if (file.size > 2 * 1024 * 1024) {
-        showToast('❌ Файл слишком большой (макс 2 МБ)');
-        return;
-      }
-
+      if (!allowed.includes(file.type)) { showToast('❌ Только PNG, JPG, WebP, GIF'); return; }
+      if (file.size > 2 * 1024 * 1024) { showToast('❌ Файл слишком большой (макс 2 МБ)'); return; }
+      const customs = loadCustomStyles();
+      if (customs.length >= 5) { showToast('❌ Макс 5 своих стилей'); return; }
+      _markCropFileName = file.name.replace(/\.[^.]+$/, '').slice(0, 20) || 'Моё';
       const reader = new FileReader();
       reader.onload = (e) => {
-        // Обрезаем до квадрата 128×128 через canvas
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = 128; canvas.height = 128;
-          const ctx = canvas.getContext('2d');
-          // Рисуем круглую маску
-          ctx.beginPath();
-          ctx.arc(64, 64, 64, 0, Math.PI * 2);
-          ctx.clip();
-          // Вписываем изображение по центру (crop)
-          const size = Math.min(img.width, img.height);
-          const sx = (img.width - size) / 2;
-          const sy = (img.height - size) / 2;
-          ctx.drawImage(img, sx, sy, size, size, 0, 0, 128, 128);
-          const dataUrl = canvas.toDataURL('image/png');
-
-          const id = 'custom_' + Date.now();
-          const name = file.name.replace(/\.[^.]+$/, '').slice(0, 20) || 'Моё';
-          const customs = loadCustomStyles();
-          // Макс 5 кастомных стилей
-          if (customs.length >= 5) {
-            showToast('❌ Макс 5 своих стилей');
-            return;
-          }
-          customs.push({ id, label: name, emoji: null, img: dataUrl, isPhoto: true, isCustom: true });
-          saveCustomStyles(customs);
-          currentMarkStyle = id;
-          localStorage.setItem('markStyle', id);
-          initMarkPicker();
-          if (cardNumbers.length) renderCard();
-          showToast('✅ Стиль загружен');
+          // Открываем тот же кроппер что и для аватара, но с другим колбэком
+          _cropState.naturalW = img.naturalWidth;
+          _cropState.naturalH = img.naturalHeight;
+          _cropState.src = e.target.result;
+          const fit = CROP_SIZE / Math.min(img.naturalWidth, img.naturalHeight);
+          _cropState.scale = fit;
+          _cropState.ox = (CROP_SIZE - img.naturalWidth * fit) / 2;
+          _cropState.oy = (CROP_SIZE - img.naturalHeight * fit) / 2;
+          document.getElementById('cropImg').src = e.target.result;
+          _cropMode = 'mark'; // режим: mark или avatar
+          openCropModal();
         };
         img.src = e.target.result;
       };
       reader.readAsDataURL(file);
+    }
+
+    function applyMarkCrop(dataUrl) {
+      const id = 'custom_' + Date.now();
+      const customs = loadCustomStyles();
+      customs.push({ id, label: _markCropFileName, emoji: null, img: dataUrl, isPhoto: true, isCustom: true });
+      saveCustomStyles(customs);
+      currentMarkStyle = id;
+      localStorage.setItem('markStyle', id);
+      initMarkPicker();
+      if (cardNumbers.length) renderCard();
+      showToast('✅ Стиль загружен');
     }
 
     function updateGameStats() {
