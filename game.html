@@ -77,21 +77,19 @@
       box-sizing:border-box; width:100%;
     }
     .avatar-picker-wrap.open { display:block; }
-    .avatar-grid {
-      display:grid;
-      grid-template-columns:repeat(6, 1fr);
-      gap:6px;
+    .avatar-upload-area {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 12px; padding: 4px 0;
     }
-    .avatar-option {
-      aspect-ratio:1/1;
-      max-width:44px; max-height:44px;
-      width:100%;
-      background:rgba(255,215,0,.1); border:2px solid transparent;
-      border-radius:50%; display:flex; align-items:center; justify-content:center;
-      font-size:clamp(14px, 3.5vw, 22px); cursor:pointer; transition:all .15s ease;
+    .avatar-upload-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 12px;
+      background: rgba(255,215,0,.08); border: 2px dashed rgba(255,215,0,.4);
+      border-radius: 14px; cursor: pointer; color: #FFD700;
+      font-size: 14px; font-weight: 700; transition: all .2s ease;
     }
-    .avatar-option:hover { background:rgba(255,215,0,.25); transform:scale(1.1); }
-    .avatar-option.selected { border-color:#FFD700; background:rgba(255,215,0,.3); }
+    .avatar-upload-btn:hover { background: rgba(255,215,0,.15); border-color: #FFD700; }
+
     .input-group{ margin-bottom:20px; }
     .input-label{ color:rgba(255,215,0,.7); font-size:14px; margin-bottom:8px; display:block; }
     .input-field{
@@ -407,6 +405,50 @@
     .conn-status.connecting .conn-dot { background: #FFD700; animation: blink 1s infinite; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
+    /* Кроппер аватара */
+    .crop-modal {
+      display:none; position:fixed; inset:0; z-index:10000;
+      background:rgba(0,0,0,.92); flex-direction:column;
+      align-items:center; justify-content:center; gap:16px; padding:20px;
+    }
+    .crop-modal.show { display:flex; }
+    .crop-title { color:#FFD700; font-size:16px; font-weight:900; }
+    .crop-wrap {
+      position:relative; width:280px; height:280px;
+      overflow:hidden; border-radius:12px; cursor:crosshair;
+      background:#111; touch-action:none;
+    }
+    .crop-img {
+      position:absolute; user-select:none; pointer-events:none;
+    }
+    .crop-circle-overlay {
+      position:absolute; inset:0; pointer-events:none;
+      box-shadow: inset 0 0 0 9999px rgba(0,0,0,.55);
+      border-radius:12px;
+    }
+    .crop-circle-ring {
+      position:absolute; border:3px solid #FFD700;
+      border-radius:50%; pointer-events:none;
+    }
+    .crop-controls { display:flex; gap:10px; align-items:center; }
+    .crop-zoom-btn {
+      width:40px; height:40px; border-radius:50%;
+      background:rgba(255,215,0,.15); border:2px solid rgba(255,215,0,.4);
+      color:#FFD700; font-size:22px; font-weight:900; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .crop-zoom-btn:hover { background:rgba(255,215,0,.3); }
+    .crop-zoom-label { color:rgba(255,215,0,.7); font-size:13px; min-width:40px; text-align:center; }
+    .crop-btns { display:flex; gap:12px; }
+    .crop-btn-apply {
+      padding:12px 28px; background:#FFD700; color:#000;
+      border:none; border-radius:12px; font-size:15px; font-weight:900; cursor:pointer;
+    }
+    .crop-btn-cancel {
+      padding:12px 20px; background:rgba(255,255,255,.1); color:#fff;
+      border:2px solid rgba(255,255,255,.2); border-radius:12px; font-size:15px; cursor:pointer;
+    }
+
     /* Кастомный скроллбар */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -513,7 +555,12 @@
       </div>
 
       <div class="avatar-picker-wrap" id="avatarPickerWrap">
-        <div class="avatar-grid" id="avatarGrid"></div>
+        <div class="avatar-upload-area">
+          <label class="avatar-upload-btn" id="avatarUploadLabel">
+            📷 Загрузить фото
+            <input type="file" id="avatarFileInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+          </label>
+        </div>
       </div>
 
       <div class="input-group">
@@ -766,6 +813,25 @@
       <div class="modal-title">🎉 ЛОТО! 🎉</div>
       <p style="text-align:center; margin-bottom:20px; font-size:18px;">Поздравляем с победой!</p>
       <button class="btn-primary" onclick="closeWinModal()">Отлично!</button>
+    </div>
+  </div>
+
+  <!-- Кроппер аватара -->
+  <div class="crop-modal" id="cropModal">
+    <div class="crop-title">Выберите область</div>
+    <div class="crop-wrap" id="cropWrap">
+      <img id="cropImg" class="crop-img" draggable="false">
+      <div class="crop-circle-overlay"></div>
+      <div class="crop-circle-ring" id="cropRing"></div>
+    </div>
+    <div class="crop-controls">
+      <button class="crop-zoom-btn" onclick="cropZoom(-0.1)">−</button>
+      <div class="crop-zoom-label" id="cropZoomLabel">100%</div>
+      <button class="crop-zoom-btn" onclick="cropZoom(+0.1)">+</button>
+    </div>
+    <div class="crop-btns">
+      <button class="crop-btn-cancel" onclick="closeCropModal()">Отмена</button>
+      <button class="crop-btn-apply" onclick="applyCrop()">Применить</button>
     </div>
   </div>
 
@@ -1152,9 +1218,7 @@
         } catch(_) {}
       }
       document.getElementById('nicknameInput').value = userProfile.nickname;
-      const avEl = document.getElementById('profileAvatar');
-      avEl.textContent = userProfile.avatar;
-      avEl.insertAdjacentHTML('beforeend', '<span class="avatar-edit-hint">ИЗМЕНИТЬ</span>');
+      updateAvatarDisplay(userProfile.avatar || '👤');
       document.getElementById('gamesPlayed').textContent = userProfile.gamesPlayed;
       document.getElementById('gamesWon').textContent = userProfile.gamesWon;
       const wr = userProfile.gamesPlayed > 0
@@ -1178,36 +1242,143 @@
     }
 
 
-    const AVATARS = [
-      '👤','😀','😎','🤩','😈','👻','🤖','🐱',
-      '🐶','🐸','🦊','🐺','🐻','🐯','🦁','🐼',
-      '🦄','🐲','👾','🎃','🤠','🥷','👽','🧙',
-      '🧛','🧟','🧜','🧝','🔥','⭐','💎','🏆',
-    ];
-
     function initAvatarPicker() {
-      const grid = document.getElementById('avatarGrid');
-      if (!grid) return;
-      grid.innerHTML = '';
-      AVATARS.forEach(emoji => {
-        const btn = document.createElement('div');
-        btn.className = 'avatar-option' + (userProfile.avatar === emoji ? ' selected' : '');
-        btn.textContent = emoji;
-        btn.onclick = (e) => {
-          e.stopPropagation();
-          userProfile.avatar = emoji;
-          // Update display
-          const av = document.getElementById('profileAvatar');
-          av.textContent = emoji;
-          av.insertAdjacentHTML('beforeend', '<span class="avatar-edit-hint">ИЗМЕНИТЬ</span>');
-          grid.querySelectorAll('.avatar-option').forEach(b => b.classList.remove('selected'));
-          btn.classList.add('selected');
-          // Auto-save
-          localStorage.setItem('userProfile', JSON.stringify(userProfile));
-          sendWS({ type: 'update_profile', nickname: userProfile.nickname, avatar: userProfile.avatar });
+      const input = document.getElementById('avatarFileInput');
+      if (!input) return;
+      input.onchange = (e) => handleAvatarUpload(e.target.files[0]);
+    }
+
+    // ====== КРОППЕР ======
+    let _cropState = { scale:1, ox:0, oy:0, dragging:false, lastX:0, lastY:0, naturalW:0, naturalH:0 };
+    const CROP_SIZE = 280; // px размер области кроппера
+
+    function handleAvatarUpload(file) {
+      if (!file) return;
+      const allowed = ['image/png','image/jpeg','image/webp','image/gif'];
+      if (!allowed.includes(file.type)) { showToast('❌ Только PNG, JPG, WebP, GIF'); return; }
+      if (file.size > 2 * 1024 * 1024) { showToast('❌ Файл слишком большой (макс 2 МБ)'); return; }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          _cropState.naturalW = img.naturalWidth;
+          _cropState.naturalH = img.naturalHeight;
+          // Начальный масштаб — вписать картинку в квадрат
+          const fit = CROP_SIZE / Math.min(img.naturalWidth, img.naturalHeight);
+          _cropState.scale = fit;
+          _cropState.ox = (CROP_SIZE - img.naturalWidth * fit) / 2;
+          _cropState.oy = (CROP_SIZE - img.naturalHeight * fit) / 2;
+          const cropImg = document.getElementById('cropImg');
+          cropImg.src = e.target.result;
+          openCropModal();
         };
-        grid.appendChild(btn);
-      });
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function openCropModal() {
+      document.getElementById('cropModal').classList.add('show');
+      updateCropView();
+      initCropDrag();
+    }
+
+    function closeCropModal() {
+      document.getElementById('cropModal').classList.remove('show');
+    }
+
+    function updateCropView() {
+      const s = _cropState;
+      const img = document.getElementById('cropImg');
+      const w = s.naturalW * s.scale;
+      const h = s.naturalH * s.scale;
+      img.style.width = w + 'px';
+      img.style.height = h + 'px';
+      img.style.left = s.ox + 'px';
+      img.style.top = s.oy + 'px';
+      // Кольцо — всегда центр области
+      const r = CROP_SIZE / 2;
+      const ring = document.getElementById('cropRing');
+      ring.style.left = '0px'; ring.style.top = '0px';
+      ring.style.width = CROP_SIZE + 'px'; ring.style.height = CROP_SIZE + 'px';
+      ring.style.borderRadius = '50%';
+      document.getElementById('cropZoomLabel').textContent = Math.round(s.scale * 100) + '%';
+    }
+
+    function cropZoom(delta) {
+      const s = _cropState;
+      const cx = CROP_SIZE / 2, cy = CROP_SIZE / 2;
+      const oldScale = s.scale;
+      s.scale = Math.max(0.3, Math.min(5, s.scale + delta));
+      // Масштабируем относительно центра
+      s.ox = cx - (cx - s.ox) * (s.scale / oldScale);
+      s.oy = cy - (cy - s.oy) * (s.scale / oldScale);
+      updateCropView();
+    }
+
+    function initCropDrag() {
+      const wrap = document.getElementById('cropWrap');
+      wrap.onmousedown = (e) => { _cropState.dragging=true; _cropState.lastX=e.clientX; _cropState.lastY=e.clientY; e.preventDefault(); };
+      wrap.ontouchstart = (e) => { _cropState.dragging=true; _cropState.lastX=e.touches[0].clientX; _cropState.lastY=e.touches[0].clientY; };
+      document.onmousemove = (e) => {
+        if (!_cropState.dragging) return;
+        _cropState.ox += e.clientX - _cropState.lastX;
+        _cropState.oy += e.clientY - _cropState.lastY;
+        _cropState.lastX = e.clientX; _cropState.lastY = e.clientY;
+        updateCropView();
+      };
+      document.ontouchmove = (e) => {
+        if (!_cropState.dragging) return;
+        _cropState.ox += e.touches[0].clientX - _cropState.lastX;
+        _cropState.oy += e.touches[0].clientY - _cropState.lastY;
+        _cropState.lastX = e.touches[0].clientX; _cropState.lastY = e.touches[0].clientY;
+        updateCropView();
+      };
+      document.onmouseup = () => { _cropState.dragging = false; };
+      document.ontouchend = () => { _cropState.dragging = false; };
+    }
+
+    function applyCrop() {
+      const s = _cropState;
+      const canvas = document.createElement('canvas');
+      canvas.width = 128; canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      ctx.beginPath();
+      ctx.arc(64, 64, 64, 0, Math.PI * 2);
+      ctx.clip();
+      // Координаты: центр CROP_SIZE/2, берём квадрат CROP_SIZE×CROP_SIZE
+      const scale128 = 128 / CROP_SIZE;
+      ctx.drawImage(
+        document.getElementById('cropImg'),
+        -s.ox * scale128, -s.oy * scale128,
+        s.naturalW * s.scale * scale128,
+        s.naturalH * s.scale * scale128
+      );
+      const dataUrl = canvas.toDataURL('image/png');
+      userProfile.avatar = dataUrl;
+      localStorage.setItem('userProfile', JSON.stringify(userProfile));
+      sendWS({ type: 'update_profile', nickname: userProfile.nickname, avatar: userProfile.avatar });
+      updateAvatarDisplay(dataUrl);
+      const wrap = document.getElementById('avatarPickerWrap');
+      if (wrap) wrap.classList.remove('open');
+      closeCropModal();
+      showToast('✅ Аватар обновлён');
+    }
+
+    function updateAvatarDisplay(src) {
+      const av = document.getElementById('profileAvatar');
+      if (!av) return;
+      // Если base64 картинка — показываем img, иначе текст
+      if (src && src.startsWith('data:')) {
+        av.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = src;
+        img.style.cssText = 'width:80px;height:80px;border-radius:50%;object-fit:cover;';
+        av.appendChild(img);
+      } else {
+        av.textContent = src || '👤';
+      }
+      av.insertAdjacentHTML('beforeend', '<span class="avatar-edit-hint">ИЗМЕНИТЬ</span>');
     }
 
     function toggleAvatarPicker() {
@@ -1289,7 +1460,7 @@
         item.className = 'player-item';
         item.style.cursor = 'pointer';
         item.innerHTML = `
-          <div class="player-avatar">${(player.nickname || 'И').charAt(0).toUpperCase()}</div>
+          <div class="player-avatar">${player.avatar && player.avatar.startsWith('data:') ? `<img src="${player.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : (player.nickname || 'И').charAt(0).toUpperCase()}</div>
           <div class="player-info">
             <div class="player-name">${escapeHtml(player.nickname || 'Игрок')}</div>
             <div class="player-status">В лобби</div>
@@ -1306,7 +1477,17 @@
 
 
     async function showPlayerProfile(player) {
-      document.getElementById('ppAvatar').textContent = player.avatar || '👤';
+      const ppAv = document.getElementById('ppAvatar');
+      const avSrc = player.avatar || '👤';
+      if (avSrc.startsWith('data:')) {
+        ppAv.innerHTML = '';
+        const _img = document.createElement('img');
+        _img.src = avSrc;
+        _img.style.cssText = 'width:70px;height:70px;border-radius:50%;object-fit:cover;';
+        ppAv.appendChild(_img);
+      } else {
+        ppAv.textContent = avSrc;
+      }
       document.getElementById('ppName').textContent = player.nickname || 'Игрок';
       document.getElementById('ppGames').textContent = '...';
       document.getElementById('ppWins').textContent = '...';
