@@ -67,9 +67,10 @@
     }
     .profile-avatar:hover { transform: scale(1.05); }
     .avatar-edit-hint {
-      position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+      display:block; margin:6px auto 0;
       background:#FFD700; color:#000; font-size:10px; font-weight:900;
-      padding:2px 8px; border-radius:8px; white-space:nowrap;
+      padding:2px 10px; border-radius:8px; white-space:nowrap;
+      width:fit-content; text-align:center;
     }
     .avatar-picker-wrap {
       display:none; margin:0 0 16px;
@@ -426,10 +427,7 @@
       position:absolute; inset:0; pointer-events:none;
       background: radial-gradient(circle at center, transparent 49.5%, rgba(0,0,0,0.7) 50%);
     }
-    .crop-circle-ring {
-      position:absolute; border:3px solid #FFD700;
-      border-radius:50%; pointer-events:none;
-    }
+
     .crop-controls { display:flex; gap:10px; align-items:center; }
     .crop-zoom-btn {
       width:40px; height:40px; border-radius:50%;
@@ -550,8 +548,9 @@
     </div>
 
     <div class="profile-card">
-      <div class="profile-avatar" id="profileAvatar" onclick="toggleAvatarPicker()">
-        👤<span class="avatar-edit-hint">ИЗМЕНИТЬ</span>
+      <div style="text-align:center; margin-bottom:10px;">
+        <div class="profile-avatar" id="profileAvatar" onclick="toggleAvatarPicker()">👤</div>
+        <span class="avatar-edit-hint" id="avatarHint" onclick="toggleAvatarPicker()" style="cursor:pointer;">ИЗМЕНИТЬ</span>
       </div>
 
       <div class="avatar-picker-wrap" id="avatarPickerWrap">
@@ -822,7 +821,6 @@
     <div class="crop-wrap" id="cropWrap">
       <img id="cropImg" class="crop-img" draggable="false">
       <div class="crop-circle-overlay"></div>
-      <div class="crop-circle-ring" id="cropRing"></div>
     </div>
     <div class="crop-controls">
       <button class="crop-zoom-btn" onclick="cropZoom(-0.1)">−</button>
@@ -1219,6 +1217,7 @@
       }
       document.getElementById('nicknameInput').value = userProfile.nickname;
       updateAvatarDisplay(userProfile.avatar || '👤');
+      // Hint теперь снаружи круга — не вставляем внутрь
       document.getElementById('gamesPlayed').textContent = userProfile.gamesPlayed;
       document.getElementById('gamesWon').textContent = userProfile.gamesWon;
       const wr = userProfile.gamesPlayed > 0
@@ -1296,12 +1295,7 @@
       img.style.height = h + 'px';
       img.style.left = s.ox + 'px';
       img.style.top = s.oy + 'px';
-      // Кольцо — всегда центр области
-      const r = CROP_SIZE / 2;
-      const ring = document.getElementById('cropRing');
-      ring.style.left = '0px'; ring.style.top = '0px';
-      ring.style.width = CROP_SIZE + 'px'; ring.style.height = CROP_SIZE + 'px';
-      ring.style.borderRadius = '50%';
+
       document.getElementById('cropZoomLabel').textContent = Math.round(s.scale * 100) + '%';
     }
 
@@ -1368,17 +1362,15 @@
     function updateAvatarDisplay(src) {
       const av = document.getElementById('profileAvatar');
       if (!av) return;
-      // Если base64 картинка — показываем img, иначе текст
       if (src && src.startsWith('data:')) {
         av.innerHTML = '';
         const img = document.createElement('img');
         img.src = src;
-        img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;';
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
         av.appendChild(img);
       } else {
-        av.textContent = src || '👤';
+        av.innerHTML = src || '👤';
       }
-      av.insertAdjacentHTML('beforeend', '<span class="avatar-edit-hint">ИЗМЕНИТЬ</span>');
     }
 
     function toggleAvatarPicker() {
