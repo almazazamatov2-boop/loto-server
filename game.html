@@ -1334,22 +1334,22 @@
 
     function applyCrop() {
       const s = _cropState;
+      // Шаг 1: воспроизводим экранное отображение на канвасе CROP_SIZE x CROP_SIZE
+      const tmp = document.createElement('canvas');
+      tmp.width = CROP_SIZE; tmp.height = CROP_SIZE;
+      const tctx = tmp.getContext('2d');
+      const imgEl = document.getElementById('cropImg');
+      // Рисуем image в тех же координатах что на экране (ox,oy) и размер (naturalW*scale x naturalH*scale)
+      tctx.drawImage(imgEl, s.ox, s.oy, s.naturalW * s.scale, s.naturalH * s.scale);
+
+      // Шаг 2: масштабируем в 128x128 с круговым клипом
       const canvas = document.createElement('canvas');
       canvas.width = 128; canvas.height = 128;
       const ctx = canvas.getContext('2d');
       ctx.beginPath();
       ctx.arc(64, 64, 64, 0, Math.PI * 2);
       ctx.clip();
-      // sx,sy = верхний левый угол видимой области в натуральных пикселях
-      const sx = -s.ox / s.scale;
-      const sy = -s.oy / s.scale;
-      const sw = CROP_SIZE / s.scale;
-      const sh = CROP_SIZE / s.scale;
-      ctx.drawImage(
-        document.getElementById('cropImg'),
-        sx, sy, sw, sh,  // из источника
-        0, 0, 128, 128   // в canvas
-      );
+      ctx.drawImage(tmp, 0, 0, CROP_SIZE, CROP_SIZE, 0, 0, 128, 128);
       const dataUrl = canvas.toDataURL('image/png');
       userProfile.avatar = dataUrl;
       localStorage.setItem('userProfile', JSON.stringify(userProfile));
