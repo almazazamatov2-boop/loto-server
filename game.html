@@ -1248,7 +1248,7 @@
     }
 
     // ====== КРОППЕР ======
-    let _cropState = { scale:1, ox:0, oy:0, dragging:false, lastX:0, lastY:0, naturalW:0, naturalH:0 };
+    let _cropState = { scale:1, ox:0, oy:0, dragging:false, lastX:0, lastY:0, naturalW:0, naturalH:0, src:'' };
     const CROP_SIZE = 280; // px размер области кроппера
 
     function handleAvatarUpload(file) {
@@ -1262,6 +1262,7 @@
         img.onload = () => {
           _cropState.naturalW = img.naturalWidth;
           _cropState.naturalH = img.naturalHeight;
+          _cropState.src = e.target.result;
           // Начальный масштаб — вписать картинку в квадрат
           const fit = CROP_SIZE / Math.min(img.naturalWidth, img.naturalHeight);
           _cropState.scale = fit;
@@ -1334,31 +1335,35 @@
 
     function applyCrop() {
       const s = _cropState;
-      // Шаг 1: воспроизводим экранное отображение на канвасе CROP_SIZE x CROP_SIZE
-      const tmp = document.createElement('canvas');
-      tmp.width = CROP_SIZE; tmp.height = CROP_SIZE;
-      const tctx = tmp.getContext('2d');
-      const imgEl = document.getElementById('cropImg');
-      // Рисуем image в тех же координатах что на экране (ox,oy) и размер (naturalW*scale x naturalH*scale)
-      tctx.drawImage(imgEl, s.ox, s.oy, s.naturalW * s.scale, s.naturalH * s.scale);
-
-      // Шаг 2: масштабируем в 128x128 с круговым клипом
-      const canvas = document.createElement('canvas');
-      canvas.width = 128; canvas.height = 128;
-      const ctx = canvas.getContext('2d');
-      ctx.beginPath();
-      ctx.arc(64, 64, 64, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.drawImage(tmp, 0, 0, CROP_SIZE, CROP_SIZE, 0, 0, 128, 128);
-      const dataUrl = canvas.toDataURL('image/png');
-      userProfile.avatar = dataUrl;
-      localStorage.setItem('userProfile', JSON.stringify(userProfile));
-      sendWS({ type: 'update_profile', nickname: userProfile.nickname, avatar: userProfile.avatar });
-      updateAvatarDisplay(dataUrl);
-      const wrap = document.getElementById('avatarPickerWrap');
-      if (wrap) wrap.classList.remove('open');
-      closeCropModal();
-      showToast('✅ Аватар обновлён');
+      // Загружаем свежий Image из сохранённого src — без CSS-масштабирования
+      const freshImg = new Image();
+      freshImg.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128; canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.beginPath();
+        ctx.arc(64, 64, 64, 0, Math.PI * 2);
+        ctx.clip();
+        // ox,oy,scale — позиция в CSS-пикселях кроппера (CROP_SIZE×CROP_SIZE)
+        // Пересчитываем в натуральные пиксели изображения
+        const ratio = s.naturalW / (s.naturalW * s.scale) * CROP_SIZE / 128;
+        // Источник: кусок натурального изображения соответствующий CROP_SIZE окну
+        const srcX = -s.ox / s.scale;
+        const srcY = -s.oy / s.scale;
+        const srcW = CROP_SIZE / s.scale;
+        const srcH = CROP_SIZE / s.scale;
+        ctx.drawImage(freshImg, srcX, srcY, srcW, srcH, 0, 0, 128, 128);
+        const dataUrl = canvas.toDataURL('image/png');
+        userProfile.avatar = dataUrl;
+        localStorage.setItem('userProfile', JSON.stringify(userProfile));
+        sendWS({ type: 'update_profile', nickname: userProfile.nickname, avatar: userProfile.avatar });
+        updateAvatarDisplay(dataUrl);
+        const wrap = document.getElementById('avatarPickerWrap');
+        if (wrap) wrap.classList.remove('open');
+        closeCropModal();
+        showToast('✅ Аватар обновлён');
+      };
+      freshImg.src = s.src;
     }
 
     function updateAvatarDisplay(src) {
