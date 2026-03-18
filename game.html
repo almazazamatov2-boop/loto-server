@@ -63,6 +63,7 @@
       box-shadow:0 8px 20px rgba(255,215,0,.4);
       cursor:pointer; position:relative;
       transition: transform 0.2s ease;
+      overflow:hidden; padding:0;
     }
     .profile-avatar:hover { transform: scale(1.05); }
     .avatar-edit-hint {
@@ -423,8 +424,7 @@
     }
     .crop-circle-overlay {
       position:absolute; inset:0; pointer-events:none;
-      box-shadow: inset 0 0 0 9999px rgba(0,0,0,.55);
-      border-radius:12px;
+      background: radial-gradient(circle at center, transparent 49.5%, rgba(0,0,0,0.7) 50%);
     }
     .crop-circle-ring {
       position:absolute; border:3px solid #FFD700;
@@ -1350,7 +1350,7 @@
       const scale128 = 128 / CROP_SIZE;
       ctx.drawImage(
         document.getElementById('cropImg'),
-        -s.ox * scale128, -s.oy * scale128,
+        s.ox * scale128, s.oy * scale128,
         s.naturalW * s.scale * scale128,
         s.naturalH * s.scale * scale128
       );
@@ -1373,7 +1373,7 @@
         av.innerHTML = '';
         const img = document.createElement('img');
         img.src = src;
-        img.style.cssText = 'width:80px;height:80px;border-radius:50%;object-fit:cover;';
+        img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;';
         av.appendChild(img);
       } else {
         av.textContent = src || '👤';
@@ -1483,7 +1483,7 @@
         ppAv.innerHTML = '';
         const _img = document.createElement('img');
         _img.src = avSrc;
-        _img.style.cssText = 'width:70px;height:70px;border-radius:50%;object-fit:cover;';
+        _img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;';
         ppAv.appendChild(_img);
       } else {
         ppAv.textContent = avSrc;
