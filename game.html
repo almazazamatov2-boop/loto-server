@@ -1340,13 +1340,15 @@
       ctx.beginPath();
       ctx.arc(64, 64, 64, 0, Math.PI * 2);
       ctx.clip();
-      // Координаты: центр CROP_SIZE/2, берём квадрат CROP_SIZE×CROP_SIZE
-      const scale128 = 128 / CROP_SIZE;
+      // sx,sy = верхний левый угол видимой области в натуральных пикселях
+      const sx = -s.ox / s.scale;
+      const sy = -s.oy / s.scale;
+      const sw = CROP_SIZE / s.scale;
+      const sh = CROP_SIZE / s.scale;
       ctx.drawImage(
         document.getElementById('cropImg'),
-        s.ox * scale128, s.oy * scale128,
-        s.naturalW * s.scale * scale128,
-        s.naturalH * s.scale * scale128
+        sx, sy, sw, sh,  // из источника
+        0, 0, 128, 128   // в canvas
       );
       const dataUrl = canvas.toDataURL('image/png');
       userProfile.avatar = dataUrl;
