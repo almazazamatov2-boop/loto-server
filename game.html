@@ -12,36 +12,6 @@
       background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%);
       min-height:100vh; color:#fff; overflow-x:hidden;
     }
-    body.light-theme {
-      background: linear-gradient(135deg, #f5f5ff 0%, #eaeaf8 100%) !important;
-      color: #111 !important;
-    }
-    body.light-theme .profile-card,
-    body.light-theme .stat-card,
-    body.light-theme .chat-msg,
-    body.light-theme .header,
-    body.light-theme .settings-item,
-    body.light-theme .lobby-row,
-    body.light-theme .modal-content,
-    body.light-theme .game-card,
-    body.light-theme .loto-card { background: rgba(0,0,0,.06) !important; border-color: rgba(0,0,0,.15) !important; }
-    body.light-theme .header-title,
-    body.light-theme .stat-value,
-    body.light-theme .player-name,
-    body.light-theme .lobby-row-name,
-    body.light-theme .chat-text,
-    body.light-theme .settings-label { color: #222 !important; }
-    body.light-theme .input-field { background: rgba(0,0,0,.06) !important; color: #111 !important; border-color: rgba(0,0,0,.2) !important; }
-    body.light-theme .cell { background: rgba(0,0,0,.08) !important; color: #111 !important; }
-    body.light-theme .cell.empty { background: rgba(0,0,0,.03) !important; }
-    body.light-theme .screen { background: transparent; }
-    .level-badge {
-      display:inline-flex; align-items:center; gap:6px;
-      background: rgba(255,215,0,.15); border:2px solid rgba(255,215,0,.4);
-      border-radius:20px; padding:4px 12px;
-      font-size:14px; font-weight:900; color:#FFD700;
-      margin: 4px auto 12px; width:fit-content;
-    }
     .level-progress-wrap {
       margin:8px 0 16px; 
     }
@@ -670,12 +640,7 @@
           <div class="toggle-thumb"></div>
         </div>
       </div>
-      <div class="settings-item">
-        <div class="settings-label">🌙 Тёмная тема</div>
-        <div class="toggle active" id="darkToggle" onclick="toggleSetting('dark')">
-          <div class="toggle-thumb"></div>
-        </div>
-      </div>
+
     </div>
   </div>
 
@@ -1174,9 +1139,6 @@
           break;
 
         case 'game_started':
-          // Считаем игру
-          userProfile.gamesPlayed++;
-          localStorage.setItem('userProfile', JSON.stringify(userProfile));
           if (msg.card) {
             cardNumbers = msg.card;
             markedCells.clear();
@@ -1311,8 +1273,7 @@
       document.getElementById(screenId).classList.add('active');
       currentScreen = screenId;
       if (screenId === 'lobbiesScreen') refreshLobbyList();
-      if (screenId === 'profileScreen') loadProfile();
-      if (screenId === 'profileScreen') { loadProfile(); initMarkPicker(); } else if (screenId === 'settingsScreen') { /* settings */ }
+      if (screenId === 'profileScreen') { loadProfile(); initMarkPicker(); }
     }
 
     // ====== ПРОФИЛЬ ======
@@ -1540,7 +1501,7 @@
       if (el) el.classList.toggle('active', settings[setting]);
       localStorage.setItem('settings', JSON.stringify(settings));
       if (setting === 'animations') document.body.classList.toggle('no-animations', !settings.animations);
-      if (setting === 'dark') document.body.classList.toggle('light-theme', !settings.dark);
+
       if (setting !== 'sound') playSound('click');
       if (settings.vibration && tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
     }
