@@ -449,6 +449,9 @@ wss.on('connection', (ws) => {
         WHERE lobby_id = ? AND user_id = ?
       `).run(JSON.stringify(card), currentLobbyId, player.user_id);
       
+      // Увеличиваем счётчик игр
+      db.prepare('UPDATE users SET games_played = games_played + 1 WHERE id = ?').run(player.user_id);
+
       sendToUser(player.user_id, {
         type: 'game_started',
         card: card
